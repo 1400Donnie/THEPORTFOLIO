@@ -297,20 +297,6 @@ function BuildingMesh({ kind }: { kind: Project['kind'] }) {
   const maps = useMemo(() => getPixelMaps(), [])
 
   switch (kind) {
-    case 'tower':
-      return (
-        <group>
-          <PixelBox args={[3.4, 11.5, 3.4]} position={[0, 5.75, 0]} map={maps.stone} />
-          <PixelBox args={[3.7, 0.35, 3.7]} position={[0, 11.7, 0]} map={maps.moss} />
-          <WindowPane position={[0, 3.0, 1.72]} />
-          <WindowPane position={[0, 5.6, 1.72]} />
-          <WindowPane position={[0, 8.2, 1.72]} />
-          <Bush position={[1.9, 0.3, 1.6]} />
-          <Bush position={[-1.8, 0.28, 1.5]} scale={0.8} />
-          <MossTuft position={[0.6, 11.95, 0.4]} />
-        </group>
-      )
-
     case 'cottage':
       return (
         <group>
@@ -345,29 +331,6 @@ function BuildingMesh({ kind }: { kind: Project['kind'] }) {
     case 'well':
       return <WellMesh />
 
-    case 'gallery':
-      return (
-        <group>
-          <PixelBox args={[7.2, 0.25, 4.4]} position={[0, 0.12, 0]} map={maps.stone} />
-          <PixelBox args={[6.6, 2.2, 3.8]} position={[0, 1.35, 0]} map={maps.plaster} />
-          <PixelBox args={[7.6, 0.22, 4.6]} position={[0, 2.6, 0]} map={maps.moss} />
-          {([-3.3, 3.3] as const).map((x) =>
-            ([-1.7, 1.7] as const).map((z) => (
-              <PixelBox
-                key={`${x}-${z}`}
-                args={[0.38, 2.7, 0.38]}
-                position={[x, 1.35, z]}
-                map={maps.wood}
-              />
-            )),
-          )}
-          <WindowPane position={[-1.6, 1.4, 1.92]} size={[1.1, 1.0, 0.08]} />
-          <WindowPane position={[1.6, 1.4, 1.92]} size={[1.1, 1.0, 0.08]} />
-          <Bush position={[-3.8, 0.3, 2.2]} />
-          <MossTuft position={[1.2, 2.85, 0.6]} />
-        </group>
-      )
-
     case 'workshop':
       return (
         <group>
@@ -383,20 +346,6 @@ function BuildingMesh({ kind }: { kind: Project['kind'] }) {
           <PixelBox args={[1.0, 1.8, 0.1]} position={[-1.6, 0.95, 2.12]} map={maps.wood} />
           <Bush position={[-2.9, 0.3, 2.0]} />
           <Bush position={[2.8, 0.28, 2.1]} scale={0.85} />
-        </group>
-      )
-
-    case 'archive':
-      return (
-        <group>
-          <PixelBox args={[2.4, 5.6, 2.4]} position={[0, 2.8, 0]} map={maps.plaster} />
-          <GabledRoof width={2.9} depth={2.8} y={6.05} mossy />
-          <WindowPane position={[0, 2.1, 1.22]} size={[0.5, 0.65, 0.08]} />
-          <WindowPane position={[0, 3.6, 1.22]} size={[0.5, 0.65, 0.08]} />
-          <WindowPane position={[0, 5.0, 1.22]} size={[0.45, 0.55, 0.08]} />
-          <PixelBox args={[0.7, 1.4, 0.08]} position={[0, 0.75, 1.22]} map={maps.wood} />
-          <Bush position={[1.3, 0.28, 1.1]} scale={0.75} />
-          <Bush position={[-1.25, 0.26, 1.0]} scale={0.65} />
         </group>
       )
   }

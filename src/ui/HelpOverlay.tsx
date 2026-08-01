@@ -22,9 +22,6 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
             <strong>Move</strong> with WASD (or arrow keys)
           </li>
           <li>
-            <strong>Look around</strong> with the mouse after clicking the field
-          </li>
-          <li>
             <strong>Enter a house</strong> when close and aimed at it (left click or E)
           </li>
           <li>

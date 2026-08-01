@@ -6,27 +6,18 @@ export type Project = {
   enterLabel: string
   position: [number, number, number]
   rotation: number
-  kind:
-    | 'tower'
-    | 'cottage'
-    | 'barn'
-    | 'well'
-    | 'gallery'
-    | 'workshop'
-    | 'archive'
+  kind: 'cottage' | 'barn' | 'well' | 'workshop'
 }
 
 /**
- * Little town layout (looking north from spawn):
- *   spawn → main street → well square → tower
- *   cottage / archive flank the well
- *   gallery + workshop on a cross street north of the well
- *   barn sits off the east spur
+ * Four landmarks:
+ *   spawn → path → wishing well
+ *   three house paths radiate from the well (north, west, east)
  */
 export const projects: Project[] = [
   {
     id: 'well',
-    title: 'Project Four',
+    title: 'Project One',
     blurb: 'An old wishing well at the heart of town. Content coming soon.',
     url: null,
     enterLabel: 'Inspect well',
@@ -37,60 +28,30 @@ export const projects: Project[] = [
   {
     id: 'cottage',
     title: 'Project Two',
-    blurb: 'A small house on the west side of the square. Swap this for a real case study later.',
+    blurb: 'A cottage at the north end of the path. Swap this for a real case study later.',
     url: null,
     enterLabel: 'Enter house',
-    position: [-9.5, 0, -7.5],
-    rotation: Math.PI / 2,
+    position: [0, 0, -22],
+    rotation: Math.PI,
     kind: 'cottage',
   },
   {
-    id: 'archive',
-    title: 'Project Seven',
-    blurb: 'A narrow archive hut on the east square. Last placeholder building for now.',
-    url: null,
-    enterLabel: 'Enter house',
-    position: [8.5, 0, -7],
-    rotation: -Math.PI / 2 + 0.15,
-    kind: 'archive',
-  },
-  {
-    id: 'tower',
-    title: 'Project One',
-    blurb: 'A tall landmark at the north end of the street. Add your project description here.',
-    url: null,
-    enterLabel: 'Enter house',
-    position: [0, 0, -24],
-    rotation: Math.PI,
-    kind: 'tower',
-  },
-  {
-    id: 'gallery',
-    title: 'Project Five',
-    blurb: 'A pavilion on the north-west lane. Wire a live demo link when ready.',
-    url: null,
-    enterLabel: 'Enter house',
-    position: [-11, 0, -17],
-    rotation: Math.PI / 2 + 0.2,
-    kind: 'gallery',
-  },
-  {
     id: 'workshop',
-    title: 'Project Six',
-    blurb: 'Workshop with a chimney on the north-east lane. Your build notes will live here.',
+    title: 'Project Three',
+    blurb: 'A workshop at the west end of the path. Your build notes will live here.',
     url: null,
     enterLabel: 'Enter house',
-    position: [11, 0, -17.5],
-    rotation: -Math.PI / 2 - 0.15,
+    position: [-16, 0, -8],
+    rotation: Math.PI / 2,
     kind: 'workshop',
   },
   {
     id: 'barn',
-    title: 'Project Three',
-    blurb: 'A wide barn at the edge of town. Placeholder for one of your works.',
+    title: 'Project Four',
+    blurb: 'A barn at the east end of the path. Placeholder for one of your works.',
     url: null,
     enterLabel: 'Enter house',
-    position: [16, 0, -2],
+    position: [16, 0, -8],
     rotation: -Math.PI / 2,
     kind: 'barn',
   },

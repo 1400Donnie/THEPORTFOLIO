@@ -114,6 +114,7 @@ export default function App() {
           <FirstPerson
             enabled={started && !blocked}
             locked={locked && !blocked}
+            canSwing={!nearbyId}
             onLock={() => {
               setStarted(true)
               setLocked(true)
@@ -158,9 +159,11 @@ export default function App() {
           <div className="hud">
             <span>WASD move</span>
             <span className="dot">·</span>
-            <span>mouse look</span>
+            <span>Shift sprint</span>
             <span className="dot">·</span>
-            <span>walk up to enter</span>
+            <span>Space jump</span>
+            <span className="dot">·</span>
+            <span>click swing</span>
             <span className="dot">·</span>
             <span>Esc guide</span>
           </div>

@@ -6,9 +6,9 @@ const RAIL_COLOR = '#8a5a32'
 
 /** Property rectangle — buildings + spawn sit inside this. */
 export const FENCE = {
-  minX: -20,
+  minX: -22,
   maxX: 22,
-  minZ: -32,
+  minZ: -28,
   maxZ: 14,
   spacing: 2.4,
 } as const
