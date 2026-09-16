@@ -1,15 +1,17 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { PointerLockControls } from '@react-three/drei'
-import { useEffect, useRef } from 'react'
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import * as THREE from 'three'
 import { Sword } from './Sword'
 import { FENCE } from '../world/Fence'
+import { resolveBuildingCollisions } from '../world/colliders'
 
 const WALK_SPEED = 8
 const SPRINT_SPEED = 14
 const EYE_HEIGHT = 1.7
 const JUMP_VELOCITY = 7.2
 const GRAVITY = 22
+const PLAYER_RADIUS = 0.42
 /** Keep the player just inside the fence line. */
 const PAD = 1.2
 const MIN_X = FENCE.minX + PAD
@@ -19,20 +21,32 @@ const MAX_Z = FENCE.maxZ - PAD
 
 type Keys = Record<string, boolean>
 
+export type FirstPersonHandle = {
+  lock: () => void
+}
+
 export function FirstPerson({
   enabled,
+  controlsEnabled,
   locked,
   canSwing,
+  lookSensitivity,
+  controlsRef: controlsHandleRef,
   onLock,
   onUnlock,
 }: {
   enabled: boolean
+  controlsEnabled: boolean
   locked: boolean
   canSwing: boolean
+  lookSensitivity: number
+  controlsRef?: Ref<FirstPersonHandle | null>
   onLock: () => void
   onUnlock: () => void
 }) {
-  const controlsRef = useRef<{ lock: () => void; unlock: () => void } | null>(null)
+  const controlsRef = useRef<{ lock: () => void; unlock: () => void; pointerSpeed: number } | null>(
+    null,
+  )
   const keys = useRef<Keys>({})
   const { camera } = useThree()
   const velocity = useRef(new THREE.Vector3())
@@ -42,6 +56,12 @@ export function FirstPerson({
   const verticalVel = useRef(0)
   const onGround = useRef(true)
   const sprinting = useRef(false)
+
+  useImperativeHandle(controlsHandleRef, () => ({
+    lock: () => {
+      controlsRef.current?.lock()
+    },
+  }))
 
   useEffect(() => {
     camera.position.set(0, EYE_HEIGHT, 10)
@@ -69,10 +89,16 @@ export function FirstPerson({
   }, [])
 
   useEffect(() => {
-    if (!enabled && controlsRef.current) {
+    if (!controlsEnabled && controlsRef.current) {
       controlsRef.current.unlock()
     }
-  }, [enabled])
+  }, [controlsEnabled])
+
+  useEffect(() => {
+    if (controlsRef.current) {
+      controlsRef.current.pointerSpeed = lookSensitivity
+    }
+  }, [lookSensitivity])
 
   useFrame((_, delta) => {
     if (!locked || !enabled) {
@@ -113,6 +139,14 @@ export function FirstPerson({
     camera.position.x += velocity.current.x * delta
     camera.position.z += velocity.current.z * delta
 
+    const resolved = resolveBuildingCollisions(
+      camera.position.x,
+      camera.position.z,
+      PLAYER_RADIUS,
+    )
+    camera.position.x = resolved.x
+    camera.position.z = resolved.z
+
     verticalVel.current -= GRAVITY * delta
     camera.position.y += verticalVel.current * delta
     if (camera.position.y <= EYE_HEIGHT) {
@@ -123,13 +157,23 @@ export function FirstPerson({
 
     camera.position.x = THREE.MathUtils.clamp(camera.position.x, MIN_X, MAX_X)
     camera.position.z = THREE.MathUtils.clamp(camera.position.z, MIN_Z, MAX_Z)
+
+    const afterFence = resolveBuildingCollisions(
+      camera.position.x,
+      camera.position.z,
+      PLAYER_RADIUS,
+    )
+    camera.position.x = afterFence.x
+    camera.position.z = afterFence.z
   })
 
   return (
     <>
       <PointerLockControls
         ref={controlsRef as never}
-        enabled={enabled}
+        enabled={controlsEnabled}
+        selector="canvas"
+        pointerSpeed={lookSensitivity}
         onLock={onLock}
         onUnlock={onUnlock}
       />

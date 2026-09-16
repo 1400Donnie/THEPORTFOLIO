@@ -1,15 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
 
 :root {
-  --ink: #1a1a1a;
+  /* WCAG 2.1 AA-oriented palette (ADA web contrast baseline) */
+  --ink: #121512;
   --paper: #e8ece8;
   --grass: #3f8f35;
   --wood: #6b4226;
-  --sky: #c8cfd6;
-  --panel: rgba(244, 246, 242, 0.94);
-  --muted: #4a534c;
-  --line: #1a1a1a;
-  --accent: #2f6b2a;
+  --sky: #b7dff2;
+  --panel: #f7f8f5;
+  --panel-frost: rgba(247, 248, 245, 0.92);
+  --muted: #3a423c;
+  --line: #121512;
+  --accent: #1f5c1c;
+  --accent-text: #ffffff;
+  --focus-ring: #0b57d0;
   --font-display: 'Caveat', cursive;
   --font-body: 'IBM Plex Sans', system-ui, sans-serif;
 }
@@ -34,6 +38,6 @@ body,
 
 body {
   background:
-    radial-gradient(ellipse 80% 50% at 50% 0%, #d5dde4 0%, transparent 55%),
-    linear-gradient(180deg, #c8cfd6 0%, #b7c4ab 100%);
+    radial-gradient(ellipse 80% 50% at 50% 0%, #9ecae8 0%, transparent 55%),
+    linear-gradient(180deg, #5fa8d8 0%, #b7dff2 55%, #c8d9a8 100%);
 }

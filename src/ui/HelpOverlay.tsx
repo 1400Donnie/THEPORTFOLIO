@@ -1,4 +1,14 @@
-export function HelpOverlay({ onClose }: { onClose: () => void }) {
+import { SensitivitySlider } from './SensitivitySlider'
+
+export function HelpOverlay({
+  lookSensitivity,
+  onLookSensitivityChange,
+  onClose,
+}: {
+  lookSensitivity: number
+  onLookSensitivityChange: (value: number) => void
+  onClose: () => void
+}) {
   return (
     <div
       className="overlay-backdrop"
@@ -13,9 +23,8 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
         <p className="overlay-kicker">Guide</p>
         <h2 id="help-title">How this world works</h2>
         <p className="overlay-blurb">
-          This field is a walkable portfolio. Walk up to a building and aim at it — when you are
-          close enough and looking at it, an Enter house prompt appears. Left click or press E to
-          open that project.
+          This field is a walkable portfolio. Walk up to a house, aim at it, then left click or press
+          E to open that project.
         </p>
         <ul className="help-list">
           <li>
@@ -28,6 +37,11 @@ export function HelpOverlay({ onClose }: { onClose: () => void }) {
             <strong>Escape</strong> pauses exploration and shows this guide
           </li>
         </ul>
+        <SensitivitySlider
+          id="help-look-sensitivity"
+          value={lookSensitivity}
+          onChange={onLookSensitivityChange}
+        />
         <p className="help-note">
           Building entry is paused while this guide is open. Close it to keep exploring.
         </p>
