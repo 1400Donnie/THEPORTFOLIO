@@ -1,4 +1,5 @@
 import { projects, type Project } from '../data/projects'
+import { HOUSE_HALF_D, HOUSE_HALF_W } from './Buildings'
 
 export type Collider = {
   minX: number
@@ -9,7 +10,7 @@ export type Collider = {
 
 /** Local footprint half-extents before yaw. */
 const FOOTPRINT: Record<Project['kind'], { halfW: number; halfD: number }> = {
-  cottage: { halfW: 4.2, halfD: 3.6 },
+  cottage: { halfW: HOUSE_HALF_W, halfD: HOUSE_HALF_D },
 }
 
 function footprintToWorldAABB(

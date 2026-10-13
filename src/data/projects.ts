@@ -22,7 +22,7 @@ export const projects: Project[] = [
       'Walk up to this house and click (or press E) when the enter prompt appears. Add your live link below in projects.ts.',
     url: null,
     enterLabel: 'Enter house',
-    position: [0, 0, -22],
+    position: [0, 0, -24.5],
     rotation: 0,
     kind: 'cottage',
   },

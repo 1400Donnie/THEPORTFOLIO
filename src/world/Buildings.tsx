@@ -5,19 +5,47 @@ import type { Project } from '../data/projects'
 import { projects } from '../data/projects'
 
 /**
- * Signature house: "Field Folio Keep"
- * Fantasy cottage language, slate-teal roof, hall + side annex.
- * Door/windows sit in cut openings (no z-fight) with view-stable materials.
+ * One-story house, sized in meters (1 unit = 1 m).
+ * Walls meet at corners without shared volume. Roof underside lands on the
+ * eave line, and the gable is a triangle that follows that slope.
+ * Windows are opaque. The front faces +Z, toward the path.
  */
 
-const PLASTER = '#c9b498'
-const GLOW = '#f0c45a'
-const COPPER = '#8a5a32'
+const SIDING = '#e4d8c6'
+const TRIM = '#f3eee6'
+const GLASS = '#1a2633'
+
+const W = 7.4
+const D = 5.4
+const T = 0.16
+const FLOOR = 0.3
+const WALL_H = 2.5
+const EAVE = FLOOR + WALL_H
+const RISE = 1.12
+const HALF_D = D / 2
+const HALF_W = W / 2
+const OH_X = 0.36
+const OH_Z = 0.3
+const PORCH_D = 1.6
+const STEP_D = 0.32
+const STEP_W = 1.45
+const ROOF_T = 0.1
+
+/** Front of the entry steps, in house-local Z. Collider half-depth uses this. */
+export const HOUSE_FRONT_Z = HALF_D + PORCH_D + STEP_D
+export const HOUSE_HALF_W = HALF_W + 0.06
+export const HOUSE_HALF_D = HOUSE_FRONT_Z
+
+const DOOR_W = 0.96
+const DOOR_H = 2.08
+const WIN_W = 1.08
+const WIN_H = 1.18
+const SILL = FLOOR + 0.78
+const WIN_CX = 2.05
 
 function makeTexture(
   draw: (ctx: CanvasRenderingContext2D, size: number) => void,
-  size = 128,
-  repeat: [number, number] = [1, 1],
+  size = 256,
 ) {
   const canvas = document.createElement('canvas')
   canvas.width = size
@@ -25,21 +53,21 @@ function makeTexture(
   const ctx = canvas.getContext('2d')!
   draw(ctx, size)
   const texture = new THREE.CanvasTexture(canvas)
-  texture.magFilter = THREE.LinearFilter
-  texture.minFilter = THREE.LinearMipmapLinearFilter
   texture.colorSpace = THREE.SRGBColorSpace
   texture.wrapS = THREE.RepeatWrapping
   texture.wrapT = THREE.RepeatWrapping
-  texture.repeat.set(repeat[0], repeat[1])
-  texture.anisotropy = 4
+  texture.anisotropy = 8
+  texture.magFilter = THREE.LinearFilter
+  texture.minFilter = THREE.LinearMipmapLinearFilter
   return texture
 }
 
 type Maps = {
-  plaster: THREE.CanvasTexture
-  timber: THREE.CanvasTexture
+  siding: THREE.CanvasTexture
+  shingle: THREE.CanvasTexture
   stone: THREE.CanvasTexture
-  tile: THREE.CanvasTexture
+  wood: THREE.CanvasTexture
+  door: THREE.CanvasTexture
 }
 
 let mapsCache: Maps | null = null
@@ -47,58 +75,114 @@ let mapsCache: Maps | null = null
 function getMaps(): Maps {
   if (mapsCache) return mapsCache
 
-  const plaster = makeTexture((ctx, size) => {
-    ctx.fillStyle = '#cbb79a'
-    ctx.fillRect(0, 0, size, size)
-    for (let i = 0; i < 700; i++) {
-      const shade = 170 + ((i * 29) % 35)
-      ctx.fillStyle = `rgb(${shade},${shade - 18},${shade - 40})`
-      ctx.fillRect((i * 17) % size, (i * 41) % size, 1 + (i % 3), 1 + (i % 2))
+  const siding = makeTexture((ctx, s) => {
+    const rows = 16
+    const h = s / rows
+    for (let i = 0; i < rows; i++) {
+      const y = i * h
+      const tone = 214 + ((i * 17) % 18)
+      const g = ctx.createLinearGradient(0, y, 0, y + h)
+      g.addColorStop(0, `rgb(${tone + 12},${tone + 4},${tone - 12})`)
+      g.addColorStop(0.72, `rgb(${tone},${tone - 10},${tone - 26})`)
+      g.addColorStop(1, `rgb(${tone - 28},${tone - 34},${tone - 42})`)
+      ctx.fillStyle = g
+      ctx.fillRect(0, y, s, h)
+      ctx.fillStyle = 'rgba(90,70,50,0.28)'
+      ctx.fillRect(0, y + h - 1.5, s, 1.5)
     }
-  }, 128, [2, 2])
-
-  const timber = makeTexture((ctx, size) => {
-    ctx.fillStyle = '#3a2416'
-    ctx.fillRect(0, 0, size, size)
-    for (let x = 0; x < size; x += 6) {
-      ctx.fillStyle = x % 12 === 0 ? '#2a1810' : '#4a3020'
-      ctx.fillRect(x, 0, 4, size)
+    for (let i = 0; i < 900; i++) {
+      ctx.fillStyle = `rgba(120,90,60,${0.03 + (i % 5) * 0.012})`
+      ctx.fillRect((i * 47) % s, (i * 19) % s, 2, 1)
     }
-  }, 64, [1, 1])
+  })
 
-  const stone = makeTexture((ctx, size) => {
-    ctx.fillStyle = '#6a727c'
-    ctx.fillRect(0, 0, size, size)
-    for (let i = 0; i < 55; i++) {
-      const x = (i * 37) % size
-      const y = (i * 23) % size
-      const w = 12 + (i % 14)
-      const h = 8 + (i % 10)
-      const tone = 110 + (i % 40)
-      ctx.fillStyle = `rgb(${tone},${tone + 4},${tone + 10})`
-      ctx.fillRect(x, y, w, h)
-      ctx.strokeStyle = 'rgba(30,34,40,0.4)'
-      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1)
-    }
-  }, 128, [2, 2])
-
-  const tile = makeTexture((ctx, size) => {
-    ctx.fillStyle = '#2f5558'
-    ctx.fillRect(0, 0, size, size)
-    const rowH = 9
-    const tileW = 12
-    for (let y = 0; y < size; y += rowH) {
-      const offset = (y / rowH) % 2 === 0 ? 0 : tileW / 2
-      for (let x = -tileW; x < size + tileW; x += tileW) {
-        const g = 70 + ((x * 3 + y * 5) % 35)
-        ctx.fillStyle = `rgb(${40 + (g % 15)},${g},${75 + (g % 20)})`
-        ctx.fillRect(x + offset + 1, y + 1, tileW - 2, rowH - 2)
+  const shingle = makeTexture((ctx, s) => {
+    ctx.fillStyle = '#3a3532'
+    ctx.fillRect(0, 0, s, s)
+    const rowH = 18
+    const tab = 28
+    for (let y = 0; y < s + rowH; y += rowH) {
+      const offset = (y / rowH) % 2 === 0 ? 0 : tab / 2
+      for (let x = -tab; x < s + tab; x += tab) {
+        const n = 48 + ((x * 3 + y * 5) % 22)
+        ctx.fillStyle = `rgb(${n + 8},${n + 4},${n})`
+        ctx.fillRect(x + offset + 1, y + 1, tab - 2, rowH - 3)
+        ctx.fillStyle = 'rgba(20,16,14,0.45)'
+        ctx.fillRect(x + offset, y + rowH - 3, tab, 2)
       }
     }
-  }, 128, [3, 2.5])
+  })
 
-  mapsCache = { plaster, timber, stone, tile }
+  const stone = makeTexture((ctx, s) => {
+    ctx.fillStyle = '#6d6a66'
+    ctx.fillRect(0, 0, s, s)
+    for (let row = 0, y = 2; y < s; row++) {
+      const h = 28 + (row % 3) * 6
+      let x = row % 2 === 0 ? 2 : -16
+      let i = 0
+      while (x < s) {
+        const w = 36 + ((row * 5 + i * 7) % 28)
+        const n = 96 + ((row * 13 + i * 9) % 36)
+        ctx.fillStyle = `rgb(${n},${n - 2},${n - 6})`
+        ctx.fillRect(x, y, w - 3, h - 3)
+        ctx.strokeStyle = 'rgba(40,36,32,0.55)'
+        ctx.strokeRect(x + 0.5, y + 0.5, w - 4, h - 4)
+        x += w
+        i++
+      }
+      y += h
+    }
+  })
+
+  const wood = makeTexture((ctx, s) => {
+    ctx.fillStyle = '#8a6240'
+    ctx.fillRect(0, 0, s, s)
+    for (let y = 0; y < s; y += 22) {
+      const n = 118 + ((y * 3) % 30)
+      ctx.fillStyle = `rgb(${n + 28},${n - 8},${n - 40})`
+      ctx.fillRect(0, y, s, 18)
+      ctx.fillStyle = 'rgba(60,36,18,0.35)'
+      ctx.fillRect(0, y + 17, s, 3)
+      for (let i = 0; i < 8; i++) {
+        ctx.strokeStyle = `rgba(70,42,20,${0.15 + (i % 3) * 0.08})`
+        ctx.beginPath()
+        ctx.moveTo(0, y + 3 + i * 2)
+        ctx.lineTo(s, y + 2 + i * 2)
+        ctx.stroke()
+      }
+    }
+  })
+
+  const door = makeTexture((ctx, s) => {
+    ctx.fillStyle = '#6b4528'
+    ctx.fillRect(0, 0, s, s)
+    for (let x = 0; x < s; x += 14) {
+      const n = 92 + ((x * 5) % 28)
+      ctx.fillStyle = `rgb(${n + 20},${n - 10},${n - 36})`
+      ctx.fillRect(x, 0, 12, s)
+      ctx.strokeStyle = 'rgba(40,22,10,0.35)'
+      ctx.beginPath()
+      ctx.moveTo(x + 4, 0)
+      ctx.lineTo(x + 6, s)
+      ctx.stroke()
+    }
+    ctx.strokeStyle = 'rgba(40,24,12,0.65)'
+    ctx.lineWidth = 6
+    ctx.strokeRect(18, 18, s - 36, s * 0.38)
+    ctx.strokeRect(18, s * 0.52, s - 36, s * 0.36)
+  })
+
+  mapsCache = { siding, shingle, stone, wood, door }
   return mapsCache
+}
+
+function clonedMap(map: THREE.Texture, repeat: [number, number]) {
+  const next = map.clone()
+  next.wrapS = THREE.RepeatWrapping
+  next.wrapT = THREE.RepeatWrapping
+  next.repeat.set(repeat[0], repeat[1])
+  next.needsUpdate = true
+  return next
 }
 
 function Box({
@@ -107,394 +191,451 @@ function Box({
   rotation,
   map,
   color,
+  repeat,
+  roughness = 0.9,
+  metalness = 0.02,
 }: {
   args: [number, number, number]
   position: [number, number, number]
   rotation?: [number, number, number]
   map?: THREE.Texture
   color?: string
+  repeat?: [number, number]
+  roughness?: number
+  metalness?: number
 }) {
+  const rx = repeat?.[0] ?? 1
+  const ry = repeat?.[1] ?? 1
+  const tex = useMemo(() => (map ? clonedMap(map, [rx, ry]) : undefined), [map, rx, ry])
   return (
     <mesh position={position} rotation={rotation} castShadow receiveShadow>
       <boxGeometry args={args} />
-      <meshStandardMaterial map={map} color={color ?? '#ffffff'} roughness={0.92} metalness={0.02} />
+      <meshStandardMaterial
+        map={tex}
+        color={color ?? '#ffffff'}
+        roughness={roughness}
+        metalness={metalness}
+      />
     </mesh>
   )
 }
 
-function SolidRoof({
-  width,
-  depth,
-  wallTop,
-  overhang = 0.4,
+/** Panel in the X/Y plane (front and back walls). */
+function PanelX({
+  x0,
+  x1,
+  y0,
+  y1,
+  z,
+  map,
 }: {
-  width: number
-  depth: number
-  wallTop: number
-  overhang?: number
+  x0: number
+  x1: number
+  y0: number
+  y1: number
+  z: number
+  map: THREE.Texture
 }) {
-  const maps = getMaps()
-  const roofW = width + overhang * 2
-  const pitch = 0.58
-  const slabDepth = depth * 0.58 + overhang
-  const ridgeLift = Math.sin(pitch) * (slabDepth * 0.42)
-  const y = wallTop + 0.08
-  // Gable fill must stop under the ridge — not poke through the roof
-  const gableH = ridgeLift + 0.15
-  const ridgeY = y + ridgeLift + 0.12
-
+  const w = x1 - x0
+  const h = y1 - y0
+  if (w < 0.02 || h < 0.02) return null
   return (
-    <group>
-      <Box
-        args={[roofW, 0.28, slabDepth]}
-        position={[0, y + ridgeLift * 0.35, slabDepth * 0.32]}
-        rotation={[pitch, 0, 0]}
-        map={maps.tile}
-      />
-      <Box
-        args={[roofW, 0.28, slabDepth]}
-        position={[0, y + ridgeLift * 0.35, -slabDepth * 0.32]}
-        rotation={[-pitch, 0, 0]}
-        map={maps.tile}
-      />
-      <Box args={[roofW * 1.02, 0.2, 0.26]} position={[0, ridgeY, 0]} map={maps.timber} />
-      {/* Short gable plugs — tucked under the roof slope */}
-      <Box
-        args={[0.14, gableH, depth * 0.72]}
-        position={[-width * 0.5 + 0.07, wallTop + gableH * 0.5, 0]}
-        color={PLASTER}
-      />
-      <Box
-        args={[0.14, gableH, depth * 0.72]}
-        position={[width * 0.5 - 0.07, wallTop + gableH * 0.5, 0]}
-        color={PLASTER}
-      />
-      <Box
-        args={[0.32, 0.24, 0.7]}
-        position={[-width * 0.5 - 0.12, wallTop + gableH * 0.55, 0]}
-        map={maps.timber}
-      />
-      <Box
-        args={[0.32, 0.24, 0.7]}
-        position={[width * 0.5 + 0.12, wallTop + gableH * 0.55, 0]}
-        map={maps.timber}
-      />
-    </group>
+    <Box
+      args={[w, h, T]}
+      position={[(x0 + x1) / 2, (y0 + y1) / 2, z]}
+      map={map}
+      repeat={[Math.max(1, w / 1.1), Math.max(1, h / 0.15)]}
+    />
   )
 }
 
-/** Window seated in a real wall opening — MeshBasic pane so color never shifts with view. */
-function GlowWindow({
-  position,
-  rotation,
-  size = [0.55, 0.7],
+/** Panel in the Z/Y plane (side walls). */
+function PanelZ({
+  z0,
+  z1,
+  y0,
+  y1,
+  x,
+  map,
 }: {
-  position: [number, number, number]
-  rotation?: [number, number, number]
-  size?: [number, number]
+  z0: number
+  z1: number
+  y0: number
+  y1: number
+  x: number
+  map: THREE.Texture
 }) {
-  const maps = getMaps()
-  const [w, h] = size
+  const d = z1 - z0
+  const h = y1 - y0
+  if (d < 0.02 || h < 0.02) return null
   return (
-    <group position={position} rotation={rotation}>
-      <Box args={[w + 0.18, h + 0.18, 0.12]} position={[0, 0, 0]} map={maps.timber} />
-      <mesh position={[0, 0, 0.02]}>
-        <boxGeometry args={[w, h, 0.04]} />
-        <meshBasicMaterial color={GLOW} toneMapped={false} />
-      </mesh>
-      <Box args={[0.04, h * 0.9, 0.03]} position={[0, 0, 0.04]} color="#5a3420" />
-      <Box args={[w * 0.9, 0.04, 0.03]} position={[0, 0, 0.04]} color="#5a3420" />
-    </group>
-  )
-}
-
-/** Door seated in a real wall opening. */
-function ArchedDoor({ position }: { position: [number, number, number] }) {
-  const maps = getMaps()
-  return (
-    <group position={position}>
-      <Box args={[1.45, 2.25, 0.22]} position={[0, 0.05, 0]} map={maps.stone} />
-      <Box args={[1.05, 1.9, 0.1]} position={[0, 0, 0.04]} map={maps.timber} />
-      <mesh position={[0, 0.88, 0.04]} rotation={[Math.PI / 2, 0, 0]} castShadow>
-        <cylinderGeometry args={[0.52, 0.52, 0.1, 12, 1, false, 0, Math.PI]} />
-        <meshStandardMaterial map={maps.timber} roughness={0.9} />
-      </mesh>
-      <Box args={[0.04, 1.5, 0.03]} position={[-0.22, -0.08, 0.1]} color="#2a1810" />
-      <Box args={[0.04, 1.5, 0.03]} position={[0.22, -0.08, 0.1]} color="#2a1810" />
-      <mesh position={[0.36, 0.05, 0.12]}>
-        <sphereGeometry args={[0.06, 10, 10]} />
-        <meshStandardMaterial color={COPPER} roughness={0.4} metalness={0.55} />
-      </mesh>
-      <Box args={[1.6, 0.16, 0.6]} position={[0, -1.12, 0.28]} map={maps.stone} />
-      <Box args={[1.3, 0.12, 0.45]} position={[0, -1.0, 0.45]} map={maps.stone} />
-    </group>
-  )
-}
-
-function Lantern({ position }: { position: [number, number, number] }) {
-  return (
-    <group position={position}>
-      <Box args={[0.08, 0.4, 0.08]} position={[0, 0.15, 0]} color="#1c1c1c" />
-      <Box args={[0.24, 0.3, 0.24]} position={[0, -0.08, 0]} color="#222" />
-      <mesh position={[0, -0.08, 0]}>
-        <boxGeometry args={[0.16, 0.22, 0.16]} />
-        <meshBasicMaterial color={GLOW} toneMapped={false} />
-      </mesh>
-    </group>
-  )
-}
-
-function Barrel({ position }: { position: [number, number, number] }) {
-  const maps = getMaps()
-  return (
-    <group position={position}>
-      <mesh castShadow>
-        <cylinderGeometry args={[0.35, 0.38, 0.7, 12]} />
-        <meshStandardMaterial map={maps.timber} roughness={0.9} />
-      </mesh>
-      <mesh position={[0, 0.2, 0]}>
-        <torusGeometry args={[0.36, 0.03, 6, 16]} />
-        <meshStandardMaterial color="#5a6068" metalness={0.4} roughness={0.5} />
-      </mesh>
-      <mesh position={[0, -0.2, 0]}>
-        <torusGeometry args={[0.37, 0.03, 6, 16]} />
-        <meshStandardMaterial color="#5a6068" metalness={0.4} roughness={0.5} />
-      </mesh>
-    </group>
-  )
-}
-
-function LogPile({ position }: { position: [number, number, number] }) {
-  const maps = getMaps()
-  return (
-    <group position={position}>
-      <Box args={[0.9, 0.28, 0.28]} position={[0, 0.14, 0]} rotation={[0, 0.2, 0]} map={maps.timber} />
-      <Box args={[0.85, 0.28, 0.28]} position={[0.05, 0.14, 0.28]} rotation={[0, -0.15, 0]} map={maps.timber} />
-      <Box args={[0.8, 0.28, 0.28]} position={[0, 0.4, 0.12]} rotation={[0, 0.05, 0]} map={maps.timber} />
-    </group>
-  )
-}
-
-function MossTuft({ position }: { position: [number, number, number] }) {
-  return (
-    <mesh position={position} castShadow>
-      <sphereGeometry args={[0.28, 10, 8]} />
-      <meshStandardMaterial color="#3f8f35" roughness={1} />
-    </mesh>
+    <Box
+      args={[T, h, d]}
+      position={[x, (y0 + y1) / 2, (z0 + z1) / 2]}
+      map={map}
+      repeat={[Math.max(1, d / 1.1), Math.max(1, h / 0.15)]}
+    />
   )
 }
 
 /**
- * Front facade built as panels around openings so door/windows never share
- * a surface with the wall (eliminates z-fight flicker).
+ * Underside runs from (z0, y0) to (z1, y1). Thickness grows along the upward normal.
  */
-function FrontFacadeWithOpenings({
+function SlopedSlab({
   width,
-  height,
-  z,
-  yBase,
+  z0,
+  y0,
+  z1,
+  y1,
   map,
+  repeat,
 }: {
   width: number
-  height: number
-  z: number
-  yBase: number
+  z0: number
+  y0: number
+  z1: number
+  y1: number
   map: THREE.Texture
+  repeat: [number, number]
 }) {
-  const T = 0.28
-  // Opening layout (local X / Y relative to facade center-bottom)
-  const doorW = 1.55
-  const doorH = 2.35
-  const doorX = 0.15
-  const winW = 0.72
-  const winH = 0.9
-  const winY = 2.15
-  const leftWinX = -1.35
-  const rightWinX = 1.45
+  const dz = z1 - z0
+  const dy = y1 - y0
+  const len = Math.hypot(dz, dy)
+  const theta = Math.sign(dz || 1) * Math.atan2(-dy, Math.abs(dz))
+  const ny = Math.cos(theta)
+  const nz = Math.sin(theta)
+  return (
+    <Box
+      args={[width, ROOF_T, len]}
+      position={[0, (y0 + y1) / 2 + ny * (ROOF_T / 2), (z0 + z1) / 2 + nz * (ROOF_T / 2)]}
+      rotation={[theta, 0, 0]}
+      map={map}
+      repeat={repeat}
+      roughness={0.94}
+    />
+  )
+}
 
-  const left = -width / 2
-  const right = width / 2
-  const top = yBase + height
-  const doorLeft = doorX - doorW / 2
-  const doorRight = doorX + doorW / 2
-  const doorTop = yBase + doorH
+function Gable({ x, sign }: { x: number; sign: 1 | -1 }) {
+  const map = useMemo(() => clonedMap(getMaps().siding, [D / 1.1, RISE / 0.15]), [])
+  const geometry = useMemo(() => {
+    const shape = new THREE.Shape()
+    shape.moveTo(-HALF_D, 0)
+    shape.lineTo(HALF_D, 0)
+    shape.lineTo(0, RISE)
+    shape.closePath()
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: T, bevelEnabled: false })
+    geo.translate(0, 0, -T / 2)
+    return geo
+  }, [])
 
   return (
-    <group>
-      {/* Left of door (ground to mid) */}
-      <Box
-        args={[doorLeft - left, doorH, T]}
-        position={[(left + doorLeft) / 2, yBase + doorH / 2, z]}
-        map={map}
-      />
-      {/* Right of door (ground to mid) */}
-      <Box
-        args={[right - doorRight, doorH, T]}
-        position={[(doorRight + right) / 2, yBase + doorH / 2, z]}
-        map={map}
-      />
-      {/* Band above door, below window row */}
-      <Box
-        args={[doorW, Math.max(0.15, winY - winH / 2 - doorTop), T]}
-        position={[doorX, (doorTop + (winY - winH / 2)) / 2, z]}
-        map={map}
-      />
-      {/* Window row: left panel, between windows via door gap already, right — with window holes */}
-      {/* Far left of left window */}
-      <Box
-        args={[leftWinX - winW / 2 - left, winH, T]}
-        position={[(left + (leftWinX - winW / 2)) / 2, winY, z]}
-        map={map}
-      />
-      {/* Between left window and door column / right window */}
-      <Box
-        args={[rightWinX - winW / 2 - (leftWinX + winW / 2), winH, T]}
-        position={[(leftWinX + winW / 2 + rightWinX - winW / 2) / 2, winY, z]}
-        map={map}
-      />
-      {/* Far right of right window */}
-      <Box
-        args={[right - (rightWinX + winW / 2), winH, T]}
-        position={[((rightWinX + winW / 2) + right) / 2, winY, z]}
-        map={map}
-      />
-      {/* Cap above windows to roof */}
-      <Box
-        args={[width, Math.max(0.2, top - (winY + winH / 2)), T]}
-        position={[0, (winY + winH / 2 + top) / 2, z]}
-        map={map}
-      />
+    <mesh
+      geometry={geometry}
+      position={[x, EAVE, 0]}
+      rotation={[0, sign * (Math.PI / 2), 0]}
+      castShadow
+      receiveShadow
+    >
+      <meshStandardMaterial map={map} color="#ffffff" roughness={0.9} />
+    </mesh>
+  )
+}
 
-      {/* Fillings that sit in openings */}
-      <ArchedDoor position={[doorX, yBase + doorH / 2 - 0.05, z]} />
-      <GlowWindow position={[leftWinX, winY, z]} size={[0.5, 0.7]} />
-      <GlowWindow position={[rightWinX, winY, z]} size={[0.5, 0.7]} />
+/** Opaque pane — reads as glass, does not show the interior. */
+function SolidWindow({
+  position,
+  rotation,
+  width,
+  height,
+}: {
+  position: [number, number, number]
+  rotation?: [number, number, number]
+  width: number
+  height: number
+}) {
+  return (
+    <group position={position} rotation={rotation}>
+      <Box args={[width, height, 0.04]} position={[0, 0, 0]} color={GLASS} roughness={0.16} metalness={0.55} />
+      <Box args={[0.04, height, 0.025]} position={[0, 0, 0.03]} color={TRIM} roughness={0.6} />
+      <Box args={[width, 0.04, 0.025]} position={[0, 0, 0.03]} color={TRIM} roughness={0.6} />
+      <Box
+        args={[width + 0.14, 0.07, 0.05]}
+        position={[0, height / 2 + 0.02, 0.045]}
+        color={TRIM}
+        roughness={0.6}
+      />
+      <Box
+        args={[width + 0.14, 0.07, 0.05]}
+        position={[0, -height / 2 - 0.02, 0.045]}
+        color={TRIM}
+        roughness={0.6}
+      />
+      <Box
+        args={[0.07, height + 0.14, 0.05]}
+        position={[-(width / 2 + 0.02), 0, 0.045]}
+        color={TRIM}
+        roughness={0.6}
+      />
+      <Box
+        args={[0.07, height + 0.14, 0.05]}
+        position={[width / 2 + 0.02, 0, 0.045]}
+        color={TRIM}
+        roughness={0.6}
+      />
+      <Box
+        args={[width + 0.22, 0.07, 0.1]}
+        position={[0, -height / 2 - 0.02, 0.06]}
+        color={TRIM}
+        roughness={0.55}
+      />
     </group>
   )
 }
 
-function FolioCottage() {
+function WoodDoor({ position }: { position: [number, number, number] }) {
+  const maps = getMaps()
+  return (
+    <group position={position}>
+      <Box
+        args={[DOOR_W, DOOR_H, 0.05]}
+        position={[0, 0, 0]}
+        map={maps.door}
+        repeat={[1, 1]}
+        roughness={0.78}
+      />
+      <Box
+        args={[0.08, DOOR_H + 0.1, 0.04]}
+        position={[-(DOOR_W / 2 + 0.02), 0, 0.04]}
+        color={TRIM}
+        roughness={0.55}
+      />
+      <Box
+        args={[0.08, DOOR_H + 0.1, 0.04]}
+        position={[DOOR_W / 2 + 0.02, 0, 0.04]}
+        color={TRIM}
+        roughness={0.55}
+      />
+      <Box
+        args={[DOOR_W + 0.16, 0.08, 0.04]}
+        position={[0, DOOR_H / 2 + 0.02, 0.04]}
+        color={TRIM}
+        roughness={0.55}
+      />
+      <mesh position={[DOOR_W * 0.34, -0.05, 0.045]} castShadow>
+        <sphereGeometry args={[0.035, 14, 14]} />
+        <meshStandardMaterial color="#c6a15e" metalness={0.72} roughness={0.32} />
+      </mesh>
+    </group>
+  )
+}
+
+function HouseShell() {
   const maps = useMemo(() => getMaps(), [])
+  const innerL = -(HALF_W - T)
+  const innerR = HALF_W - T
+  const sideX = HALF_W - T / 2
+  const frontZ = HALF_D - T / 2
+  const backZ = -(HALF_D - T / 2)
 
-  const MW = 4.2
-  const MD = 3.8
-  const MH = 3.4
-  const AW = 3.2
-  const AD = 3.0
-  const AH = 2.7
-  const y0 = 0.2
-  const WT = 0.28
+  const doorL = -DOOR_W / 2
+  const doorR = DOOR_W / 2
+  const leftWin0 = -WIN_CX - WIN_W / 2
+  const leftWin1 = -WIN_CX + WIN_W / 2
+  const rightWin0 = WIN_CX - WIN_W / 2
+  const rightWin1 = WIN_CX + WIN_W / 2
+  const winTop = SILL + WIN_H
+  const doorTop = FLOOR + DOOR_H
 
-  const annexX = MW * 0.55 + AW * 0.5
-  const annexZ = 0.35
+  const sideWinW = 1.02
+  const sideWin0 = -sideWinW / 2
+  const sideWin1 = sideWinW / 2
+
+  const yUnder = (z: number) => EAVE + RISE - (RISE / HALF_D) * z
+  const eaveZ = HALF_D + OH_Z
+  const porchOuterZ = HALF_D + PORCH_D
+  const porchRoofDrop = 0.42
+  const porchZ0 = eaveZ + 0.03
+  const porchHighY = yUnder(eaveZ) - 0.04
+  const porchLowY = porchHighY - porchRoofDrop
+  const porchRoofY = (z: number) =>
+    porchHighY + ((porchLowY - porchHighY) * (z - porchZ0)) / (porchOuterZ - porchZ0)
+
+  const postZ = porchOuterZ - 0.14
+  const postTop = porchRoofY(postZ)
+  const postXs = [-(HALF_W - 0.32), -0.86, 0.86, HALF_W - 0.32]
+  const postH = postTop - FLOOR
+
+  const roofW = W + OH_X * 2
+  const shingle: [number, number] = [roofW / 0.55, 8]
 
   return (
     <group>
-      <Box args={[8.2, 0.25, 6.4]} position={[0.4, 0.1, 0.1]} map={maps.stone} />
-      <mesh position={[0.4, 0.02, 0.1]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[8.6, 6.8]} />
-        <meshStandardMaterial color="#3f8a38" roughness={1} />
-      </mesh>
-
-      {/* Shell walls — no single solid block through openings */}
-      <Box args={[MW, 0.22, MD]} position={[0, y0, 0]} map={maps.plaster} />
-      <Box args={[MW, 0.22, MD]} position={[0, y0 + MH, 0]} map={maps.plaster} />
-      <Box args={[MW, MH, WT]} position={[0, y0 + MH / 2, -MD / 2 + WT / 2]} map={maps.plaster} />
-      {/* Left wall with window opening */}
+      {/* Foundation stops at the front wall; porch deck continues from there. */}
       <Box
-        args={[WT, 2.05, MD]}
-        position={[-MW / 2 + WT / 2, y0 + 1.025, 0]}
-        map={maps.plaster}
-      />
-      <Box
-        args={[WT, 0.75, (MD - 0.7) / 2]}
-        position={[-MW / 2 + WT / 2, y0 + 2.4, -MD / 4 - 0.175]}
-        map={maps.plaster}
-      />
-      <Box
-        args={[WT, 0.75, (MD - 0.7) / 2]}
-        position={[-MW / 2 + WT / 2, y0 + 2.4, MD / 4 + 0.175]}
-        map={maps.plaster}
-      />
-      <Box
-        args={[WT, Math.max(0.2, MH - 2.8), MD]}
-        position={[-MW / 2 + WT / 2, y0 + 2.8 + (MH - 2.8) / 2, 0]}
-        map={maps.plaster}
-      />
-      <Box args={[WT, MH, MD]} position={[MW / 2 - WT / 2, y0 + MH / 2, 0]} map={maps.plaster} />
-
-      <FrontFacadeWithOpenings
-        width={MW}
-        height={MH}
-        z={MD / 2 - WT / 2}
-        yBase={y0}
-        map={maps.plaster}
+        args={[W + 0.16, FLOOR, D + 0.08]}
+        position={[0, FLOOR / 2, -0.04]}
+        map={maps.stone}
+        repeat={[4, 2]}
+        roughness={0.96}
       />
 
-      {/* Timber bands (slightly proud, no opening overlap) */}
-      <Box args={[MW + 0.06, 0.18, MD - 0.2]} position={[0, 1.15, -0.05]} map={maps.timber} />
-      <Box args={[0.18, MH - 0.3, MD - 0.2]} position={[-MW * 0.46, y0 + MH / 2, -0.05]} map={maps.timber} />
-      <Box args={[0.18, MH - 0.3, MD - 0.2]} position={[MW * 0.46, y0 + MH / 2, -0.05]} map={maps.timber} />
+      <PanelX x0={innerL} x1={leftWin0} y0={FLOOR} y1={EAVE} z={frontZ} map={maps.siding} />
+      <PanelX x0={leftWin0} x1={leftWin1} y0={FLOOR} y1={SILL} z={frontZ} map={maps.siding} />
+      <PanelX x0={leftWin0} x1={leftWin1} y0={winTop} y1={EAVE} z={frontZ} map={maps.siding} />
+      <PanelX x0={leftWin1} x1={doorL} y0={FLOOR} y1={EAVE} z={frontZ} map={maps.siding} />
+      <PanelX x0={doorL} x1={doorR} y0={doorTop} y1={EAVE} z={frontZ} map={maps.siding} />
+      <PanelX x0={doorR} x1={rightWin0} y0={FLOOR} y1={EAVE} z={frontZ} map={maps.siding} />
+      <PanelX x0={rightWin0} x1={rightWin1} y0={FLOOR} y1={SILL} z={frontZ} map={maps.siding} />
+      <PanelX x0={rightWin0} x1={rightWin1} y0={winTop} y1={EAVE} z={frontZ} map={maps.siding} />
+      <PanelX x0={rightWin1} x1={innerR} y0={FLOOR} y1={EAVE} z={frontZ} map={maps.siding} />
 
-      <Box args={[0.5, MH * 0.95, 0.5]} position={[-MW * 0.5, y0 + MH * 0.45, MD * 0.5]} map={maps.stone} />
-      <Box args={[0.5, MH * 0.95, 0.5]} position={[MW * 0.5, y0 + MH * 0.45, MD * 0.5]} map={maps.stone} />
-      <Box args={[0.5, MH * 0.95, 0.5]} position={[-MW * 0.5, y0 + MH * 0.45, -MD * 0.5]} map={maps.stone} />
-      <Box args={[0.5, MH * 0.95, 0.5]} position={[MW * 0.5, y0 + MH * 0.45, -MD * 0.5]} map={maps.stone} />
+      <PanelX x0={innerL} x1={innerR} y0={FLOOR} y1={EAVE} z={backZ} map={maps.siding} />
 
-      <SolidRoof width={MW} depth={MD} wallTop={y0 + MH - 0.05} />
+      {([-1, 1] as const).map((sign) => (
+        <group key={sign}>
+          <PanelZ z0={-HALF_D} z1={sideWin0} y0={FLOOR} y1={EAVE} x={sign * sideX} map={maps.siding} />
+          <PanelZ z0={sideWin1} z1={HALF_D} y0={FLOOR} y1={EAVE} x={sign * sideX} map={maps.siding} />
+          <PanelZ z0={sideWin0} z1={sideWin1} y0={FLOOR} y1={SILL} x={sign * sideX} map={maps.siding} />
+          <PanelZ z0={sideWin0} z1={sideWin1} y0={winTop} y1={EAVE} x={sign * sideX} map={maps.siding} />
+          <Gable x={sign * sideX} sign={sign} />
+        </group>
+      ))}
 
-      {/* Annex shell + front opening for one window */}
-      <Box args={[AW, 0.2, AD]} position={[annexX, y0, annexZ]} map={maps.plaster} />
-      <Box args={[AW, 0.2, AD]} position={[annexX, y0 + AH, annexZ]} map={maps.plaster} />
-      <Box args={[AW, AH, WT]} position={[annexX, y0 + AH / 2, annexZ - AD / 2 + WT / 2]} map={maps.plaster} />
-      <Box args={[WT, AH, AD]} position={[annexX + AW / 2 - WT / 2, y0 + AH / 2, annexZ]} map={maps.plaster} />
-      {/* Annex front panels around window */}
-      <Box
-        args={[AW, 1.35, WT]}
-        position={[annexX, y0 + 0.675, annexZ + AD / 2 - WT / 2]}
-        map={maps.plaster}
+      <SolidWindow
+        position={[-WIN_CX, SILL + WIN_H / 2, HALF_D - 0.02]}
+        width={WIN_W}
+        height={WIN_H}
       />
-      <Box
-        args={[(AW - 0.9) / 2, 0.95, WT]}
-        position={[annexX - (AW + 0.9) / 4, y0 + 1.75, annexZ + AD / 2 - WT / 2]}
-        map={maps.plaster}
+      <SolidWindow
+        position={[WIN_CX, SILL + WIN_H / 2, HALF_D - 0.02]}
+        width={WIN_W}
+        height={WIN_H}
       />
-      <Box
-        args={[(AW - 0.9) / 2, 0.95, WT]}
-        position={[annexX + (AW + 0.9) / 4, y0 + 1.75, annexZ + AD / 2 - WT / 2]}
-        map={maps.plaster}
-      />
-      <Box
-        args={[AW, Math.max(0.2, AH - 2.2), WT]}
-        position={[annexX, y0 + 2.2 + (AH - 2.2) / 2, annexZ + AD / 2 - WT / 2]}
-        map={maps.plaster}
-      />
-      <GlowWindow position={[annexX, y0 + 1.75, annexZ + AD / 2 - WT / 2]} size={[0.7, 0.75]} />
-
-      <Box args={[AW + 0.04, 0.18, AD - 0.15]} position={[annexX, 1.05, annexZ - 0.05]} map={maps.timber} />
-      <Box args={[0.5, AH * 0.9, 0.5]} position={[annexX + AW / 2, y0 + AH * 0.4, annexZ + AD * 0.5]} map={maps.stone} />
-      <Box args={[0.5, AH * 0.9, 0.5]} position={[annexX + AW / 2, y0 + AH * 0.4, annexZ - AD * 0.5]} map={maps.stone} />
-
-      <group position={[annexX, 0, annexZ]}>
-        <SolidRoof width={AW} depth={AD} wallTop={y0 + AH - 0.05} overhang={0.32} />
-      </group>
-
-      <Box args={[0.85, 1.8, 0.85]} position={[annexX - 0.3, AH + 1.35, annexZ - 0.5]} map={maps.stone} />
-      <Box args={[1.0, 0.2, 1.0]} position={[annexX - 0.3, AH + 2.2, annexZ - 0.5]} map={maps.stone} />
-
-      {/* Side window opening on main left wall */}
-      <GlowWindow
-        position={[-MW / 2 + WT / 2, y0 + 2.4, 0]}
+      <SolidWindow
+        position={[-(HALF_W - 0.02), SILL + WIN_H / 2, 0]}
         rotation={[0, -Math.PI / 2, 0]}
-        size={[0.45, 0.55]}
+        width={sideWinW}
+        height={WIN_H}
+      />
+      <SolidWindow
+        position={[HALF_W - 0.02, SILL + WIN_H / 2, 0]}
+        rotation={[0, Math.PI / 2, 0]}
+        width={sideWinW}
+        height={WIN_H}
       />
 
-      <Lantern position={[1.05, 2.55, MD / 2 + 0.1]} />
-      <Barrel position={[2.35, 0.5, MD / 2 + 0.55]} />
-      <LogPile position={[-2.1, 0.25, MD / 2 + 0.4]} />
-      <MossTuft position={[-2.5, 0.35, 1.8]} />
-      <MossTuft position={[3.8, 0.32, 1.6]} />
-      <MossTuft position={[4.2, 0.3, -0.8]} />
+      <WoodDoor position={[0, FLOOR + DOOR_H / 2, HALF_D - 0.02]} />
+
+      {/* Main roof. Slabs cross a few centimeters at the ridge; the cap seals it. */}
+      <SlopedSlab
+        width={roofW}
+        z0={-0.1}
+        y0={yUnder(-0.1)}
+        z1={eaveZ}
+        y1={yUnder(eaveZ)}
+        map={maps.shingle}
+        repeat={shingle}
+      />
+      <SlopedSlab
+        width={roofW}
+        z0={0.1}
+        y0={yUnder(-0.1)}
+        z1={-(HALF_D + OH_Z)}
+        y1={yUnder(HALF_D + OH_Z)}
+        map={maps.shingle}
+        repeat={shingle}
+      />
+      <Box
+        args={[roofW + 0.06, 0.1, 0.56]}
+        position={[0, EAVE + RISE + 0.08, 0]}
+        map={maps.shingle}
+        repeat={[10, 1]}
+        roughness={0.94}
+      />
+
+      {/* Porch deck meets the foundation on the front face. */}
+      <Box
+        args={[W, FLOOR - 0.02, PORCH_D + 0.02]}
+        position={[0, (FLOOR + 0.02) / 2, HALF_D + PORCH_D / 2 - 0.01]}
+        map={maps.wood}
+        repeat={[6, 3]}
+        roughness={0.84}
+      />
+      <Box
+        args={[STEP_W, FLOOR / 2, STEP_D]}
+        position={[0, FLOOR / 4, porchOuterZ + STEP_D / 2 - 0.01]}
+        map={maps.wood}
+        repeat={[2, 1]}
+        roughness={0.84}
+      />
+
+      {postXs.map((x) => (
+        <Box
+          key={x}
+          args={[0.14, postH, 0.14]}
+          position={[x, FLOOR + postH / 2, postZ]}
+          map={maps.wood}
+          repeat={[1, 3]}
+          roughness={0.8}
+        />
+      ))}
+
+      {/* Rails: sides, and front bays on either side of the steps. */}
+      <Rail x={-(HALF_W - 0.32)} z0={HALF_D + 0.02} z1={postZ} y={FLOOR} map={maps.wood} axis="z" />
+      <Rail x={HALF_W - 0.32} z0={HALF_D + 0.02} z1={postZ} y={FLOOR} map={maps.wood} axis="z" />
+      <Rail x0={postXs[0]} x1={postXs[1]} z={postZ} y={FLOOR} map={maps.wood} axis="x" />
+      <Rail x0={postXs[2]} x1={postXs[3]} z={postZ} y={FLOOR} map={maps.wood} axis="x" />
+
+      <SlopedSlab
+        width={W + 0.2}
+        z0={porchZ0}
+        y0={porchHighY}
+        z1={porchOuterZ + 0.06}
+        y1={porchLowY}
+        map={maps.shingle}
+        repeat={[8, 3]}
+      />
+      <Box
+        args={[W + 0.08, 0.18, 0.08]}
+        position={[0, porchHighY + 0.02, eaveZ]}
+        color={TRIM}
+        roughness={0.55}
+      />
+    </group>
+  )
+}
+
+function Rail({
+  x = 0,
+  z = 0,
+  x0 = 0,
+  x1 = 0,
+  z0 = 0,
+  z1 = 0,
+  y,
+  map,
+  axis,
+}: {
+  x?: number
+  z?: number
+  x0?: number
+  x1?: number
+  z0?: number
+  z1?: number
+  y: number
+  map: THREE.Texture
+  axis: 'x' | 'z'
+}) {
+  const along = axis === 'x' ? x1 - x0 : z1 - z0
+  const midX = axis === 'x' ? (x0 + x1) / 2 : x
+  const midZ = axis === 'z' ? (z0 + z1) / 2 : z
+  const args: [number, number, number] =
+    axis === 'x' ? [Math.abs(along), 0.08, 0.06] : [0.06, 0.08, Math.abs(along)]
+  return (
+    <group>
+      <Box args={args} position={[midX, y + 0.92, midZ]} map={map} roughness={0.8} />
+      <Box args={args} position={[midX, y + 0.42, midZ]} map={map} roughness={0.8} />
     </group>
   )
 }
@@ -515,9 +656,9 @@ function Building({ project }: { project: Project }) {
       rotation={[0, project.rotation, 0]}
       userData={{ projectId: project.id }}
     >
-      <FolioCottage />
-      <mesh position={[1.2, 2.4, 0]}>
-        <boxGeometry args={[8.5, 7, 7]} />
+      <HouseShell />
+      <mesh position={[0, 2.2, PORCH_D / 2]}>
+        <boxGeometry args={[W + 1.2, 6.5, D + PORCH_D + STEP_D + 1]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
     </group>
